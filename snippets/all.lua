@@ -198,6 +198,20 @@ return {
 			{ delimiters = "<>" }
 		)
 	),
+	s(
+		{ trig = "\\ass", snippetType = "autosnippet" },
+		fmta(
+			[[
+      \begin{assumption}
+          <>
+      \end{assumption}
+    ]],
+			{
+				i(1),
+			},
+			{ delimiters = "<>" }
+		)
+	),
 
 	s(
 		{ trig = "\\itemize", snippetType = "autosnippet" },
