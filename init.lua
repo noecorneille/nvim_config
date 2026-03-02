@@ -216,6 +216,12 @@ require("lazy").setup({
 			-- VimTeX configuration goes here, e.g.
 			-- vim.g.vimtex_view_method = "zathura"
 			vim.g.vimtex_quickfix_enabled = 0
+			vim.g.vimtex_indent_delims = {
+				open = { "{" },
+				close = { "}" },
+				close_indented = 0,
+				include_modified_math = 0,
+			}
 		end,
 	},
 	"neovim/nvim-lspconfig",
@@ -987,3 +993,23 @@ vim.keymap.set("n", "<C-LeftMouse>", "<cmd>call SVED_Sync()<CR>")
 vim.keymap.set("n", "<C-s>", "<cmd>call SVED_Sync()<CR>")
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+--
+--
+-- In your Neovim config
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "tex",
+	callback = function()
+		-- Define the Vimscript function
+		vim.cmd([[
+      function! VimtexEnvNicefrac(inner)
+        call vimtex#cmd#change_range('nicefrac', a:inner)
+      endfunction
+    ]])
+
+		-- Create the mappings using vim.cmd for better compatibility
+		vim.cmd("nmap <buffer> tsn <Plug>(vimtex-env-nicefrac)")
+		vim.cmd("xmap <buffer> inf <Plug>(vimtex-env-nicefrac)")
+		vim.cmd("nnoremap <silent><buffer> <Plug>(vimtex-env-nicefrac) :set opfunc=VimtexEnvNicefrac<CR>g@")
+		vim.cmd("xnoremap <silent><buffer> <Plug>(vimtex-env-nicefrac) :<C-U>call VimtexEnvNicefrac(0)<CR>")
+	end,
+})

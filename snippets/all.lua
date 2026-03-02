@@ -252,8 +252,8 @@ return {
 		t("}"),
 	}),
 
-	s({ trig = "<=", snippetType = "autosnippet" }, { t("\\le") }),
-	s({ trig = ">=", snippetType = "autosnippet" }, { t("\\ge") }),
+	--s({ trig = "<=", snippetType = "autosnippet" }, { t("\\le") }),
+	--s({ trig = ">=", snippetType = "autosnippet" }, { t("\\ge") }),
 
 	s({ trig = "=>", snippetType = "autosnippet" }, { t("\\Rightarrow") }),
 	s({ trig = "=<", snippetType = "autosnippet" }, { t("\\Leftarrow") }),
