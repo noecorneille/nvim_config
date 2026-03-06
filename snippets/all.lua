@@ -270,7 +270,7 @@ return {
 
 	s({ trig = "...", snippetType = "autosnippet" }, { t("\\ldots") }),
 
-	s({ trig = "\\1/2", snippetType = "autosnippet" }, { t("\\frac12") }),
+	s({ trig = "\\1/2", snippetType = "autosnippet" }, { t("\\frac{1}{2}") }),
 
 	s({ trig = "\\br", snippetType = "autosnippet" }, { t("\\\\["), i(1), t("]") }),
 }
