@@ -4,17 +4,15 @@ vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
 -- NOTE: You can change these options as you wish!
 --  For more options, you can see `:help option-list`
 
--- Make line numbers default
+-- Enable line numbers
 vim.opt.number = true
--- You can also add relative line numbers, to help with jumping.
---  Experiment for yourself to see if you like it!
 vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
@@ -23,10 +21,7 @@ vim.opt.mouse = "a"
 -- Don't show the mode, since it's already in the status line
 vim.opt.showmode = false
 
--- Sync clipboard between OS and Neovim.
---  Schedule the setting after `UiEnter` because it can increase startup-time.
---  Remove this option if you want your OS clipboard to remain independent.
---  See `:help 'clipboard'`
+-- Sync clipboard between OS and nvim
 vim.schedule(function()
 	vim.opt.clipboard = "unnamedplus"
 end)
@@ -58,11 +53,11 @@ vim.opt.breakindent = true
 -- Save undo history
 vim.opt.undofile = true
 
--- Case-insensitive searching UNLESS \C or one or more capital letters in the search term
+-- \C for case sensitivity
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
 
--- Keep signcolumn on by default
+-- Sign column (status symbols left of line num) always on
 vim.opt.signcolumn = "yes"
 
 -- Decrease update time
@@ -72,7 +67,7 @@ vim.opt.updatetime = 250
 -- Displays which-key popup sooner
 vim.opt.timeoutlen = 300
 
--- Configure how new splits should be opened
+-- Put vert/hor splits below/right
 vim.opt.splitright = true
 vim.opt.splitbelow = true
 
@@ -153,7 +148,7 @@ vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagn
 --
 -- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
 -- or just use <C-\><C-n> to exit terminal mode
-vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
+vim.keymap.set("t", "<Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows
@@ -227,7 +222,7 @@ require("lazy").setup({
 	"neovim/nvim-lspconfig",
 	"hrsh7th/cmp-nvim-lsp",
 	"hrsh7th/nvim-cmp",
-	"tpope/vim-fugitive",
+	"tpope/vim-fugitive", -- git integration :G
 	{
 		"ms-jpq/chadtree",
 		config = function()
@@ -236,7 +231,15 @@ require("lazy").setup({
 			vim.keymap.set("n", "<leader>v", "<cmd>CHADopen<CR>")
 		end,
 	},
+	{ -- Rust dependency version manager
+		"saecki/crates.nvim",
+		event = { "BufRead Cargo.toml" },
+		config = function()
+			require("crates").setup()
+		end,
+	},
 	{
+		-- Plugin to send code to REPL
 		"Vigemus/iron.nvim",
 		config = function()
 			local iron = require("iron.core")
@@ -620,6 +623,8 @@ require("lazy").setup({
 				texlab = {},
 				julials = {},
 				pylsp = {},
+				rust_analyzer = {},
+				taplo = {},
 				lua_ls = {
 					-- cmd = {...},
 					-- filetypes = { ...},
@@ -652,10 +657,12 @@ require("lazy").setup({
 				"texlab",
 				"julials",
 				"pylsp",
+				"codelldb",
 			})
 			require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 
 			require("mason-lspconfig").setup({
+				automatic_enable = false,
 				handlers = {
 					function(server_name)
 						local server = servers[server_name] or {}
@@ -698,6 +705,7 @@ require("lazy").setup({
 			end,
 			formatters_by_ft = {
 				lua = { "stylua" },
+				rust = { "rustfmt" },
 				-- Conform can also run multiple formatters sequentially
 				-- python = { "isort", "black" },
 				--
@@ -919,6 +927,8 @@ require("lazy").setup({
 				"query",
 				"vim",
 				"vimdoc",
+				"rust",
+				"toml",
 			},
 			-- Autoinstall languages that are not installed
 			auto_install = true,
