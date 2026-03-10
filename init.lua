@@ -1,27 +1,15 @@
--- Set <space> as the leader key
---  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
-
--- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = true
 
--- [[ Setting options ]]
--- See `:help vim.opt`
--- NOTE: You can change these options as you wish!
---  For more options, you can see `:help option-list`
-
--- Enable line numbers
+-- line numbers
 vim.opt.number = true
 vim.opt.relativenumber = true
 
--- Enable mouse mode, can be useful for resizing splits for example!
 vim.opt.mouse = "a"
-
--- Don't show the mode, since it's already in the status line
 vim.opt.showmode = false
 
--- Sync clipboard between OS and nvim
+-- Sync clipboard
 vim.schedule(function()
 	vim.opt.clipboard = "unnamedplus"
 end)
@@ -210,7 +198,9 @@ require("lazy").setup({
 		init = function()
 			-- VimTeX configuration goes here, e.g.
 			-- vim.g.vimtex_view_method = "zathura"
-			vim.g.vimtex_quickfix_enabled = 0
+			-- vim.g.vimtex_quickfix_enabled = 0
+			vim.g.vimtex_quickfix_mode = 2
+			vim.g.vimtex_quickfix_open_on_warning = 0
 			vim.g.vimtex_indent_delims = {
 				open = { "{" },
 				close = { "}" },
@@ -230,6 +220,15 @@ require("lazy").setup({
 			vim.api.nvim_set_var("chadtree_settings", chadtree_settings)
 			vim.keymap.set("n", "<leader>v", "<cmd>CHADopen<CR>")
 		end,
+	},
+	{
+		"jiaoshijie/undotree",
+		opts = {
+			-- your options
+		},
+		keys = {
+			{ "<leader>u", "<cmd>lua require('undotree').toggle()<cr>" },
+		},
 	},
 	{ -- Rust dependency version manager
 		"saecki/crates.nvim",
@@ -661,19 +660,15 @@ require("lazy").setup({
 			})
 			require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 
-			require("mason-lspconfig").setup({
-				automatic_enable = false,
-				handlers = {
-					function(server_name)
-						local server = servers[server_name] or {}
-						-- This handles overriding only values explicitly passed
-						-- by the server configuration above. Useful when disabling
-						-- certain features of an LSP (for example, turning off formatting for tsserver)
-						server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-						require("lspconfig")[server_name].setup(server)
-					end,
-				},
+			vim.lsp.config("*", {
+				capabilities = vim.tbl_deep_extend("force", {}, capabilities),
 			})
+
+			for server_name, config in pairs(servers) do
+				vim.lsp.config(server_name, config)
+			end
+
+			require("mason-lspconfig").setup()
 		end,
 	},
 
