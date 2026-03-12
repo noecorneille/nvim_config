@@ -9,6 +9,8 @@ vim.opt.relativenumber = true
 vim.opt.mouse = "a"
 vim.opt.showmode = false
 
+vim.opt.spell = true
+
 -- Sync clipboard
 vim.schedule(function()
 	vim.opt.clipboard = "unnamedplus"
@@ -83,37 +85,12 @@ vim.keymap.set("n", "<Leader>ev", "<Cmd>vsplit $MYVIMRC<Cr>")
 vim.keymap.set("n", "<Leader>es", "<Cmd>vsplit ~/.config/nvim/snippets/all.lua<Cr>")
 
 -- Make j,k navigate through soft wrapped lines
-
--- normal mode
-vim.keymap.set("n", "j", function()
-	if vim.v.count == 0 then
-		return "gj"
-	else
-		return "j"
-	end
-end, { expr = true, noremap = true })
-vim.keymap.set("n", "k", function()
-	if vim.v.count == 0 then
-		return "gk"
-	else
-		return "k"
-	end
+vim.keymap.set({ "n", "v" }, "j", function()
+	return vim.v.count == 0 and "gj" or "j"
 end, { expr = true, noremap = true })
 
--- visual mode
-vim.keymap.set("v", "j", function()
-	if vim.v.count == 0 then
-		return "gj"
-	else
-		return "j"
-	end
-end, { expr = true, noremap = true })
-vim.keymap.set("v", "k", function()
-	if vim.v.count == 0 then
-		return "gk"
-	else
-		return "k"
-	end
+vim.keymap.set({ "n", "v" }, "k", function()
+	return vim.v.count == 0 and "gk" or "k"
 end, { expr = true, noremap = true })
 
 -- Make up, down navigate through soft wrapped lines in 'insert' mode
@@ -210,14 +187,12 @@ require("lazy").setup({
 		end,
 	},
 	"neovim/nvim-lspconfig",
-	"hrsh7th/cmp-nvim-lsp",
 	"hrsh7th/nvim-cmp",
 	"tpope/vim-fugitive", -- git integration :G
 	{
 		"ms-jpq/chadtree",
 		config = function()
-			local chadtree_settings = { ["view.width"] = 27 }
-			vim.api.nvim_set_var("chadtree_settings", chadtree_settings)
+			vim.g.chadtree_settings = { ["view.width"] = 27 }
 			vim.keymap.set("n", "<leader>v", "<cmd>CHADopen<CR>")
 		end,
 	},
@@ -653,9 +628,6 @@ require("lazy").setup({
 			local ensure_installed = vim.tbl_keys(servers or {})
 			vim.list_extend(ensure_installed, {
 				"stylua", -- Used to format Lua code
-				"texlab",
-				"julials",
-				"pylsp",
 				"codelldb",
 			})
 			require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
@@ -738,15 +710,6 @@ require("lazy").setup({
 					-- },
 				},
 				config = function()
-					vim.cmd([[
-                      " Use Tab to expand and jump through snippets
-                      imap <silent><expr> <Tab> luasnip#expand_or_jumpable() ? '<Plug>luasnip-expand-or-jump' : '<Tab>'
-                      smap <silent><expr> <Tab> luasnip#jumpable(1) ? '<Plug>luasnip-jump-next' : '<Tab>'
-          
-                      " Use Shift-Tab to jump backwards through snippets
-                      imap <silent><expr> <S-Tab> luasnip#jumpable(-1) ? '<Plug>luasnip-jump-prev' : '<S-Tab>'
-                      smap <silent><expr> <S-Tab> luasnip#jumpable(-1) ? '<Plug>luasnip-jump-prev' : '<S-Tab>'
-                      ]])
 					require("luasnip.loaders.from_lua").load({ paths = "~/.config/nvim/snippets/" })
 				end,
 			},
@@ -980,41 +943,5 @@ require("lazy").setup({
 	},
 })
 
--- Commands run on startup
-
-vim.api.nvim_create_autocmd("VimEnter", {
-	callback = function()
-		vim.cmd("set spell")
-	end,
-})
-
--- vim.api.nvim_create_autocmd("VimEnter", {
---	callback = function()
---		vim.cmd("CHADopen")
---	end,
---})
-
 vim.keymap.set("n", "<C-LeftMouse>", "<cmd>call SVED_Sync()<CR>")
 vim.keymap.set("n", "<C-s>", "<cmd>call SVED_Sync()<CR>")
--- The line beneath this is called `modeline`. See `:help modeline`
--- vim: ts=2 sts=2 sw=2 et
---
---
--- In your Neovim config
-vim.api.nvim_create_autocmd("FileType", {
-	pattern = "tex",
-	callback = function()
-		-- Define the Vimscript function
-		vim.cmd([[
-      function! VimtexEnvNicefrac(inner)
-        call vimtex#cmd#change_range('nicefrac', a:inner)
-      endfunction
-    ]])
-
-		-- Create the mappings using vim.cmd for better compatibility
-		vim.cmd("nmap <buffer> tsn <Plug>(vimtex-env-nicefrac)")
-		vim.cmd("xmap <buffer> inf <Plug>(vimtex-env-nicefrac)")
-		vim.cmd("nnoremap <silent><buffer> <Plug>(vimtex-env-nicefrac) :set opfunc=VimtexEnvNicefrac<CR>g@")
-		vim.cmd("xnoremap <silent><buffer> <Plug>(vimtex-env-nicefrac) :<C-U>call VimtexEnvNicefrac(0)<CR>")
-	end,
-})
