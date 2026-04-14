@@ -272,7 +272,17 @@ require("fidget").setup({})
 require("mason").setup()
 
 local servers = {
-	texlab = {},
+	texlab = {
+		settings = {
+			texlab = {
+				-- Delay diagnostics by 3s
+				-- to prevent diagnostics from happening
+				-- during compilation
+				-- (this caused a memory leak)
+				diagnosticsDelay = 3000,
+			},
+		},
+	},
 	julials = {},
 	pylsp = {},
 	rust_analyzer = {},
@@ -293,11 +303,20 @@ require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities = vim.tbl_deep_extend("force", capabilities, require("cmp_nvim_lsp").default_capabilities())
 
+capabilities.workspace.didChangeWatchedFiles.dynamicRegistration = false
+
 for server_name, config in pairs(servers) do
+	local server_caps = vim.tbl_deep_extend("force", {}, capabilities)
+
+	-- Prevent TexLab from watching files (causes memory leak)
+	if server_name == "texlab" then
+		if server_caps.workspace then
+			server_caps.workspace.didChangeWatchedFiles = nil
+		end
+	end
+
+	config.capabilities = vim.tbl_deep_extend("force", server_caps, config.capabilities or {})
 	vim.lsp.config(server_name, config)
-	vim.lsp.config("*", {
-		capabilities = vim.tbl_deep_extend("force", {}, capabilities),
-	})
 end
 require("mason-lspconfig").setup()
 
@@ -320,7 +339,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		map("gD", vim.lsp.buf.declaration, "[G]oto [D]eclaration")
 
 		local client = vim.lsp.get_client_by_id(event.data.client_id)
-		if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight) then
+		if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight) then
 			local highlight_augroup = vim.api.nvim_create_augroup("kickstart-lsp-highlight", { clear = false })
 			vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
 				buffer = event.buf,
@@ -333,7 +352,8 @@ vim.api.nvim_create_autocmd("LspAttach", {
 				callback = vim.lsp.buf.clear_references,
 			})
 			vim.api.nvim_create_autocmd("LspDetach", {
-				group = vim.api.nvim_create_augroup("kickstart-lsp-detach", { clear = true }),
+				group = vim.api.nvim_create_augroup("kickstart-lsp-detach", { clear = false }),
+				buffer = event.buf,
 				callback = function(event2)
 					vim.lsp.buf.clear_references()
 					vim.api.nvim_clear_autocmds({ group = "kickstart-lsp-highlight", buffer = event2.buf })
@@ -349,12 +369,26 @@ vim.api.nvim_create_autocmd("LspAttach", {
 	end,
 })
 
--- Conform (Lazy loaded via native autocommand)
-vim.api.nvim_create_autocmd("BufWritePre", {
-	callback = function(args)
-		require("conform").format({ bufnr = args.buf, async = true, lsp_fallback = true })
-	end,
-})
+-- Intercept and filter out transient TexLab reference/label spam
+local default_diagnostic_handler = vim.lsp.handlers["textDocument/publishDiagnostics"]
+vim.lsp.handlers["textDocument/publishDiagnostics"] = function(err, result, ctx, config)
+	if result.diagnostics then
+		local filtered_diagnostics = {}
+		for _, diag in ipairs(result.diagnostics) do
+			-- Drop "Undefined reference" (codes 10/11) and "Unused label" (code 9)
+			local is_tex_ref_spam = diag.source == "texlab" and (diag.code == 11 or diag.code == 10 or diag.code == 9)
+
+			if not is_tex_ref_spam then
+				table.insert(filtered_diagnostics, diag)
+			end
+		end
+		result.diagnostics = filtered_diagnostics
+	end
+
+	-- Pass the clean diagnostics to Neovim's default renderer
+	default_diagnostic_handler(err, result, ctx, config)
+end
+
 require("conform").setup({
 	notify_on_error = false,
 	format_on_save = function(bufnr)
@@ -454,10 +488,12 @@ require("nvim-treesitter.config").setup({
 		"toml",
 	},
 	auto_install = true,
+	ignore_install = { "latex" },
 	highlight = {
 		enable = true,
 		additional_vim_regex_highlighting = { "ruby" },
 		disable = { "latex" },
 	},
-	indent = { enable = true, disable = { "ruby" } },
+	-- Vimtex has its own lsp
+	indent = { enable = true, disable = { "ruby", "latex" } },
 })
