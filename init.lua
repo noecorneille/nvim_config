@@ -158,19 +158,43 @@ vim.keymap.set("n", "<C-s>", "<plug>(vimtex-view)", { desc = "VimTeX SyncTeX Vie
 -- oil
 require("oil").setup()
 
-local last_file = ""
+local last_file_table = {}
 vim.keymap.set("n", "-", function()
-	last_file = vim.fn.expand("%")
+	local window = vim.api.nvim_get_current_win()
+	local file = vim.fn.expand("%")
+	last_file_table[window] = file
 	vim.cmd("Oil")
 end, { desc = "Open parent directory and remember file" })
 
 vim.keymap.set("n", "+", function()
-	if last_file == "" then
+	local window = vim.api.nvim_get_current_win()
+	if last_file_table[window] == nil then
 		vim.cmd('echo "no last file"')
 	else
-		vim.cmd("e " .. last_file)
+		vim.cmd("e " .. last_file_table[window])
 	end
 end, { desc = "Open remembered file" })
+
+vim.api.nvim_create_autocmd("WinClosed", {
+	callback = function(args)
+		local window_id = tonumber(args.match)
+		if last_file_table[window_id] ~= nil then
+			last_file_table[window_id] = nil
+		end
+	end,
+})
+
+vim.keymap.set("n", "<leader>-", function()
+	print(vim.fn.expand("%"))
+end, {})
+
+vim.keymap.set("n", "<leader>_", function()
+	local out = ""
+	for key, value in pairs(last_file_table) do
+		out = out .. key .. " " .. value .. "\n"
+	end
+	print(out)
+end, {})
 
 -- Crates (Lazy loaded via native autocommand)
 vim.api.nvim_create_autocmd("BufRead", {
