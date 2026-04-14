@@ -111,7 +111,8 @@ vim.pack.add({
 	github .. "lervag/vimtex",
 	github .. "neovim/nvim-lspconfig",
 	github .. "tpope/vim-fugitive",
-	github .. "ms-jpq/chadtree",
+	-- github .. "ms-jpq/chadtree",
+	github .. "stevearc/oil.nvim",
 	github .. "saecki/crates.nvim",
 	github .. "Vigemus/iron.nvim",
 	github .. "lewis6991/gitsigns.nvim",
@@ -151,8 +152,25 @@ vim.keymap.set("n", "<leader>u", "<cmd>Undotree<cr>")
 vim.keymap.set("n", "<C-s>", "<plug>(vimtex-view)", { desc = "VimTeX SyncTeX View" })
 
 -- CHADTree
-vim.g.chadtree_settings = { ["view.width"] = 27 }
-vim.keymap.set("n", "<leader>v", "<cmd>CHADopen<CR>")
+-- vim.g.chadtree_settings = { ["view.width"] = 27 }
+-- vim.keymap.set("n", "<leader>v", "<cmd>CHADopen<CR>")
+
+-- oil
+require("oil").setup()
+
+local last_file = ""
+vim.keymap.set("n", "-", function()
+	last_file = vim.fn.expand("%")
+	vim.cmd("Oil")
+end, { desc = "Open parent directory and remember file" })
+
+vim.keymap.set("n", "+", function()
+	if last_file == "" then
+		vim.cmd('echo "no last file"')
+	else
+		vim.cmd("e " .. last_file)
+	end
+end, { desc = "Open remembered file" })
 
 -- Crates (Lazy loaded via native autocommand)
 vim.api.nvim_create_autocmd("BufRead", {
@@ -361,7 +379,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
 			})
 		end
 
-		if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint) then
+		if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint) then
 			map("<leader>th", function()
 				vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled({ bufnr = event.buf }))
 			end, "[T]oggle Inlay [H]ints")
