@@ -178,7 +178,7 @@ end, { desc = "Open remembered file" })
 vim.api.nvim_create_autocmd("WinClosed", {
 	callback = function(args)
 		local window_id = tonumber(args.match)
-		if last_file_table[window_id] ~= nil then
+		if window_id ~= nil then
 			last_file_table[window_id] = nil
 		end
 	end,
