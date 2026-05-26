@@ -113,7 +113,7 @@ return {
 		)
 	),
 	s(
-		{ trig = "\\def", snippetType = "autosnippet" },
+		{ trig = "\\defi", snippetType = "autosnippet" },
 		fmta(
 			[[
       \begin{definition}
@@ -272,5 +272,5 @@ return {
 
 	s({ trig = "\\1/2", snippetType = "autosnippet" }, { t("\\frac{1}{2}") }),
 
-	s({ trig = "\\br", snippetType = "autosnippet" }, { t("\\\\["), i(1), t("]") }),
+	s({ trig = "\\brk", snippetType = "autosnippet" }, { t("\\\\["), i(1), t("]") }),
 }
