@@ -81,6 +81,8 @@ vim.keymap.set("n", "<C-j>", "<C-w><C-j>", { desc = "Move focus to the lower win
 vim.keymap.set("n", "<C-k>", "<C-w><C-k>", { desc = "Move focus to the upper window" })
 vim.keymap.set("n", "<S-CR>", "^[O2R")
 
+vim.keymap.set("n", "<CR>", "<Cmd>w<Cr>")
+
 -- Basic Autocommands
 vim.api.nvim_create_autocmd("TextYankPost", {
 	desc = "Highlight when yanking (copying) text",
@@ -138,6 +140,8 @@ vim.pack.add({
 	github .. "folke/todo-comments.nvim",
 	github .. "echasnovski/mini.nvim",
 	github .. "nvim-treesitter/nvim-treesitter",
+	github .. "nvim-lualine/lualine.nvim",
+	github .. "tpope/vim-abolish",
 })
 
 ---
@@ -184,6 +188,7 @@ vim.api.nvim_create_autocmd("WinClosed", {
 	end,
 })
 
+-- Debugging functions
 vim.keymap.set("n", "<leader>-", function()
 	print(vim.fn.expand("%"))
 end, {})
@@ -366,6 +371,16 @@ require("mason-lspconfig").setup()
 vim.api.nvim_create_autocmd("LspAttach", {
 	group = vim.api.nvim_create_augroup("kickstart-lsp-attach", { clear = true }),
 	callback = function(event)
+		-- Ignore main.tex and references.bib
+		local filename = vim.fs.basename(vim.api.nvim_buf_get_name(event.buf))
+		if filename == "main.tex" or filename == "references.bib" then
+			vim.schedule(function()
+				vim.lsp.buf_detach_client(event.buf, event.data.client_id)
+			end)
+			-- Return early
+			return
+		end
+
 		local map = function(keys, func, desc)
 			vim.keymap.set("n", keys, func, { buffer = event.buf, desc = "LSP: " .. desc })
 		end
@@ -538,4 +553,128 @@ require("nvim-treesitter.config").setup({
 	},
 	-- Vimtex has its own lsp
 	indent = { enable = true, disable = { "ruby", "latex" } },
+})
+
+-- Automatic git fetch and lualine (Multi-Repo Support)
+local fetch_timer = vim.uv.new_timer()
+-- Format: { ["/path/to/repo"] = { ahead = 0, behind = 0, last_fetch = 0 } }
+local git_repo_cache = {}
+
+-- Autocommand: find git root for every file you open or focus
+vim.api.nvim_create_autocmd({ "BufEnter", "FocusGained" }, {
+	callback = function()
+		local bufnr = vim.api.nvim_get_current_buf()
+		-- Skip buffers like terminal, NvimTree, etc.
+		if vim.bo[bufnr].buftype ~= "" then
+			return
+		end
+
+		local buf_name = vim.api.nvim_buf_get_name(bufnr)
+		-- Skip empty buffers or virtual URI buffers (like oil://, fugitive://)
+		if buf_name == "" or string.match(buf_name, "^%a+://") then
+			return
+		end
+
+		local buf_dir = vim.fs.dirname(buf_name)
+		if not buf_dir then
+			return
+		end
+
+		vim.system({ "git", "rev-parse", "--show-toplevel" }, { text = true, cwd = buf_dir }, function(obj)
+			if obj.code == 0 and obj.stdout then
+				-- Remove newline from end of path
+				local repo_root = obj.stdout:gsub("%s+", "")
+
+				vim.schedule(function()
+					if vim.api.nvim_buf_is_valid(bufnr) then
+						-- Tag this buffer with its parent repository
+						vim.b[bufnr].git_repo_root = repo_root
+						-- Populate hasmap with git repo
+						git_repo_cache[repo_root] = git_repo_cache[repo_root]
+							or { ahead = 0, behind = 0, last_fetch = 0 }
+					end
+				end)
+			end
+		end)
+	end,
+})
+
+local function check_upstream_counts(repo_root)
+	vim.system(
+		{ "git", "rev-list", "--left-right", "--count", "HEAD...@{u}" },
+		{ text = true, cwd = repo_root },
+		function(obj)
+			if obj.code == 0 and obj.stdout then
+				local ahead, behind = obj.stdout:match("(%d+)%s+(%d+)")
+				vim.schedule(function()
+					if git_repo_cache[repo_root] then
+						git_repo_cache[repo_root].ahead = tonumber(ahead) or 0
+						git_repo_cache[repo_root].behind = tonumber(behind) or 0
+					end
+				end)
+			end
+		end
+	)
+end
+
+local function periodic_git_fetch()
+	-- Only run the network fetch for the repository you are actively looking at
+	local current_repo = vim.b.git_repo_root
+	if not current_repo then
+		return
+	end
+
+	local current_time = vim.uv.now()
+	local repo_data = git_repo_cache[current_repo] or { ahead = 0, behind = 0, last_fetch = 0 }
+
+	-- Fetch at most once every 1 hour (3600000 ms) per repository
+	if (current_time - repo_data.last_fetch) > 3600000 then
+		repo_data.last_fetch = current_time
+		git_repo_cache[current_repo] = repo_data
+
+		vim.system({ "git", "fetch", "--quiet" }, { cwd = current_repo }, function()
+			check_upstream_counts(current_repo)
+		end)
+	else
+		check_upstream_counts(current_repo)
+	end
+end
+
+-- Timer: Start after 2s, repeat every 60s
+fetch_timer:start(2000, 60000, function()
+	periodic_git_fetch()
+end)
+
+fetch_timer:unref()
+
+require("lualine").setup({
+	sections = {
+		lualine_x = {
+			{
+				function()
+					local repo_root = vim.b.git_repo_root
+					-- If we aren't in a git repo, or it hasn't loaded yet, show nothing
+					if not repo_root or not git_repo_cache[repo_root] then
+						return ""
+					end
+
+					local counts = git_repo_cache[repo_root]
+					local status = {}
+
+					if counts.ahead > 0 then
+						table.insert(status, "⇡" .. counts.ahead)
+					end
+					if counts.behind > 0 then
+						table.insert(status, "⇣" .. counts.behind)
+					end
+
+					return #status > 0 and table.concat(status, " ") or ""
+				end,
+				color = { fg = "#ff9e64" },
+			},
+			"encoding",
+			"fileformat",
+			"filetype",
+		},
+	},
 })
