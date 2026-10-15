@@ -251,6 +251,13 @@ return {
 		i(2), -- insert node 2
 		t("}"),
 	}),
+	s({ trig = "\\nf", dscr = "Expands 'ff' into '\frac{}{}'", snippetType = "autosnippet" }, {
+		t("\\nicefrac{"),
+		i(1), -- insert node 1
+		t("}{"),
+		i(2), -- insert node 2
+		t("}"),
+	}),
 
 	--s({ trig = "<=", snippetType = "autosnippet" }, { t("\\le") }),
 	--s({ trig = ">=", snippetType = "autosnippet" }, { t("\\ge") }),
